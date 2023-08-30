@@ -17,7 +17,7 @@ from bs4 import BeautifulSoup
 from tqdm import tqdm
 
 ## Internal library packages and modules
-from scrapi import ArticleSoup
+from scrapi import ArticleSoup, remove_formatting
 
 
 def get_page_source(url):
@@ -62,6 +62,8 @@ def publish_date(soup):
 @ArticleSoup.register('text')
 def article_text(soup):
     content = soup.find('div', {'class':'RawHTML'})
+    if content:
+        remove_formatting(content)
     return content.get_text(strip=True, separator='\n') if content else None
 
 @ArticleSoup.register('tags')
@@ -80,12 +82,12 @@ def extract_articles(articles:list):
 def extract_from_file(files:list):
     articles = []
 
-    for file in files:
+    for file in tqdm(files, desc='Extracing Files...'):
         with open(file, 'r', encoding='utf-8') as f:
             article = ArticleSoup(f.read())
             articles.append(article)
-
     extracted = extract_articles(articles)
+    
     save_extract({'records': extracted}, 'variation-2_extract')
 
     return extracted
@@ -202,12 +204,13 @@ def main():
 
 if __name__ == '__main__':
     import sys
-
-    _, EXPORT_DIR, URL, *FILES = sys.argv
+    import os
+    _, EXPORT_DIR, URL, DIR = sys.argv
 
     EXPORT_DIR = Path(EXPORT_DIR)
-
-    if FILES:
-        extract_from_file(FILES)
+    
+    if DIR:
+        DIR = Path(DIR)
+        extract_from_file(sorted(list(DIR.iterdir()), key=os.path.getctime))
     else:
         main()

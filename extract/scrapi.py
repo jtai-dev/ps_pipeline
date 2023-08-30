@@ -72,3 +72,23 @@ class ArticleSoup(HTMLSoup):
         }
 
         return extracted
+
+
+def remove_formatting(soup):
+    emphasis = soup.find_all('em')
+    italic = soup.find_all('i')
+    strong = soup.find_all('strong')
+    bold = soup.find_all('b')
+    marked = soup.find_all('mark')
+    small = soup.find_all('small')
+    inserted = soup.find_all('ins')
+    superscripted = soup.find_all('sup')
+    subscripted = soup.find_all('sub')
+    
+    all_instances = emphasis + italic + strong + bold + \
+                    marked + small + inserted + subscripted +\
+                    superscripted
+
+    for tag in all_instances:
+        tag.unwrap()
+    soup.smooth()

@@ -124,14 +124,13 @@ def main():
     page_urls = get_page_urls(chrome_driver.page_source)
     pages_with_errors = defaultdict(list)
 
-    listing_p_bar = tqdm(total=len(page_urls), desc='Article listing iterated...')
+    listing_p_bar = tqdm(initial=1, total=len(page_urls), desc='Article listing iterated...')
     articles_p_bar = tqdm(total=0, desc='Articles gathered...')
 
     for p_link in page_urls:
                 
         try:
             chrome_driver.get(p_link.geturl())
-            listing_p_bar.update(1)
 
             article_urls = get_article_urls(chrome_driver.page_source)
             articles_p_bar.total = int((articles_p_bar.n + len(article_urls))/listing_p_bar.n  * listing_p_bar.total)

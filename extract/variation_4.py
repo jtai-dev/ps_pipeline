@@ -17,7 +17,7 @@ from bs4 import BeautifulSoup
 from tqdm import tqdm
 
 ## Internal library packages and modules
-from scrapi import ArticleSoup
+from scrapi import ArticleSoup, remove_formatting
 
 
 def get_page_source(url):
@@ -38,18 +38,21 @@ def get_page_source(url):
 
 def get_page_urls(page_source):
     soup = BeautifulSoup(page_source, 'html.parser')
-
     jump_to_page = soup.find(string='Jump to page')
-    paginator = jump_to_page.find_previous('ul') if jump_to_page else None
-    options = paginator.find_all('a') if paginator else []
+
+    paginator_1 = jump_to_page.parent if jump_to_page else None
+    options_1 = paginator_1.find_next_siblings('a') if paginator_1 else []
 
     paginator_2 = soup.find('select', {'name':'page'})
     options_2 = paginator_2.find_all('option') if paginator_2 else []
 
-    urls = [urlparse(urljoin(URL, option['href'])) for option in options[1:] if option]
-    urls_2 = [urlparse(urljoin(URL, f"?page={option['value']}")) for option in options_2[1:] if option]
+    options_3 = paginator_1.find_all_next('a') if paginator_1 else []
+ 
+    urls_1 = [urlparse(urljoin(URL, o['href'])) for o in options_1 if o]
+    urls_2 = [urlparse(urljoin(URL, f"?page={o['value']}")) for o in options_2[1:] if o]
+    urls_3 = [urlparse(urljoin(URL, o['href'])) for o in options_3[1:] if o]
 
-    return urls or urls_2
+    return urls_1 or urls_2
 
 
 def get_article_urls(page_source):
@@ -78,6 +81,8 @@ def publish_date(soup):
 def article_text(soup):
     article_container = soup.find('article', {'class':'post'})
     content = article_container.find('div', {'class':'content'}) if article_container else None
+    if content:
+        remove_formatting(content)
     return content.get_text(strip=True, separator='\n') if content else None
 
 @ArticleSoup.register('url')
@@ -127,14 +132,12 @@ def main():
     page_urls = get_page_urls(chrome_driver.page_source)
     pages_with_errors = defaultdict(list)
 
-    listing_p_bar = tqdm(total=len(page_urls), desc='Article listing iterated...')
+    listing_p_bar = tqdm(initial=1, total=len(page_urls), desc='Article listing iterated...')
     articles_p_bar = tqdm(total=0, desc='Articles gathered...')
 
     for p_link in page_urls:
-                
         try:
             chrome_driver.get(p_link.geturl())
-            listing_p_bar.update(1)
 
             article_urls = get_article_urls(chrome_driver.page_source)
             articles_p_bar.total = int((articles_p_bar.n + len(article_urls))/listing_p_bar.n  * listing_p_bar.total)
