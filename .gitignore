@@ -130,3 +130,7 @@ dmypy.json
 
 # Custom
 .DS_Store
+tabular_matcher/
+tabular_matcher
+mantest*
+connection_info.json

@@ -1,12 +1,12 @@
 
-## Built-ins
+# Built-ins
 import html
 import functools
 
 from pathlib import Path
 from datetime import datetime
 
-## External Packages
+# External Packages
 from bs4 import BeautifulSoup
 
 
@@ -27,16 +27,19 @@ class HTMLSoup:
             def deco(*args, **kwargs):
                 result = func(*args, **kwargs)
                 return result
-            
-            return deco
-        
-        return _registered
-    
-    def save_source(self, filename, filepath=None):
 
-        filepath = Path(filepath) / 'HTML_FILES' if filepath else Path('HTML_FILES') 
-        filepath.mkdir(exist_ok=True)
+            return deco
+
+        return _registered
+
+    def save(self, filename, filepath):
+
+        filepath = Path(filepath)
         timestamp = datetime.strftime(datetime.now(), '%Y-%m-%d-%H%M%S-%f')
+
+        # Replaces any slashes that might confused it to be a filepath
+        filename = filename.replace(
+            '/', '', len(filename)).replace('\x07', '', len(filename))
 
         if len(filename) > 225:
             filename = filename[:225]
@@ -47,31 +50,29 @@ class HTMLSoup:
     def __getattr__(self, __name: str):
         if __name in self._func_list:
             return self._func_list[__name](soup=self.__soup)
-        
+
     def __str__(self) -> str:
         return str(self.__soup)
 
     def __repr__(self) -> str:
         return self.__soup.prettify()
-    
+
 
 class ArticleSoup(HTMLSoup):
 
     def __init__(self, page_source):
         super().__init__(html.unescape(page_source))
 
-    def extract(self):
-
-        extracted = {
-            'title': self.title,
-            'timestamp': self.timestamp,
-            'type': self.type,
-            'text': self.text,
-            'tags': self.tags,
-            'url': self.url,
+    def extract(self): 
+        return {
+            'article_title': self.title,
+            'article_timestamp': self.timestamp,
+            'article_text': self.text,
+            'article_type': self.type,
+            'article_tags': self.tags,
+            'article_url': self.url,
+            'publish_location': self.location,
         }
-
-        return extracted
 
 
 def remove_formatting(soup):
@@ -84,11 +85,12 @@ def remove_formatting(soup):
     inserted = soup.find_all('ins')
     superscripted = soup.find_all('sup')
     subscripted = soup.find_all('sub')
-    
+
     all_instances = emphasis + italic + strong + bold + \
-                    marked + small + inserted + subscripted +\
-                    superscripted
+        marked + small + inserted + subscripted +\
+        superscripted
 
     for tag in all_instances:
         tag.unwrap()
+
     soup.smooth()
