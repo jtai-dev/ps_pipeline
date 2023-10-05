@@ -46,6 +46,7 @@ URLS = {
     urlparse('https://clyburn.house.gov/press-releases').netloc: 27066,
 }
 
+#TODO: Revamp model so that a speech can be shared among candidates.
 """
 HARVEST DATA MODEL:
 
@@ -157,23 +158,29 @@ def main(transformed_json: TransformedArticles):
             # Check to see if it contains statements at all.
             for name in nlp_extract.attributed:
                 match_info = name_ids[name]
-                candidate_id = match_info['candidate_id']
+                candidate_ids = match_info['candidate_id']
                 match_status = match_info['match_status']
-                if candidate_id:
-                    if match_status == 'REVIEW':
-                        candidate_id_review[candidate_id]['review'] = True
-                        candidate_id_review[candidate_id]['review_message'] = "Candidate name may not be matched correctly"
-                    else:
-                        candidate_id_review[candidate_id]['review'] = False
-                        candidate_id_review[candidate_id]['review_message'] = None
 
-                    for content in nlp_extract.contents.all:
-                        content_text = content.text
-                        for to_replace in content.to_replace.all:
-                            content_text = content_text.replace(
-                                content.text[to_replace.start: to_replace.end], "")
-                            
-                        candidate_id_statements[candidate_id].update({content.start:content_text})
+                if candidate_ids:
+                    for candidate_id in candidate_ids:
+
+                        if match_status == 'REVIEW':
+                            candidate_id_review[candidate_id]['review'] = True
+                            candidate_id_review[candidate_id]['review_message'] = "Candidate name may not be matched correctly"
+                        elif match_status == 'AMBIGUOUS':
+                            candidate_id_review[candidate_id]['review'] = True
+                            candidate_id_review[candidate_id]['review_message'] = "Candidate names are matched ambiguously"
+                        else:
+                            candidate_id_review[candidate_id]['review'] = False
+                            candidate_id_review[candidate_id]['review_message'] = None
+
+                        for content in nlp_extract.contents.all:
+                            content_text = content.text
+                            for to_replace in content.to_replace.all:
+                                content_text = content_text.replace(
+                                    content.text[to_replace.start: to_replace.end], "")
+                                
+                            candidate_id_statements[candidate_id].update({content.start:content_text})
 
             if candidate_id_statements:
                 exists.append(True)

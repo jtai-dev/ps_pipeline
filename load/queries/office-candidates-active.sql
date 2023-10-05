@@ -9,7 +9,7 @@ SELECT
     candidate.candidate_id,
     concat_ws(' ',
 			  candidate.firstname, 
-			  concat('"',candidate.nickname, '"'),
+			  CASE WHEN candidate.nickname != '' THEN concat('"',candidate.nickname, '"') END,
 			  candidate.lastname
 			 ) as "candidate_name",
     office.name AS office,

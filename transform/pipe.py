@@ -122,11 +122,12 @@ TODO:
 
 def main(articlejson:Articles):
 
+    # will require to run 'python -m spacy download en_core_web_trf'
     nlp = spacy.load('en_core_web_trf')
 
     data = []
 
-    for record in tqdm(articlejson.select(23), desc='Processing...'):
+    for record in tqdm(articlejson.all, desc='Processing...'):
         asciified_text = unidecode(record.text)
         doc = nlp(asciified_text)
 

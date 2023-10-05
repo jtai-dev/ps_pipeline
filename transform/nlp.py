@@ -225,7 +225,8 @@ def doc_attributed_statements(doc):
                     s._.to_replace.append(
                         TokenPosition('replace', tp_mq.start, s.end - 1, doc[tp_mq.start: s.end - 1].text))
                 else:
-                    s._.to_replace.append(TokenPosition(tp_mq.start, s.end))
+                    s._.to_replace.append(
+                        TokenPosition('replace', tp_mq.start, s.end, doc[tp_mq.start: s.end].text))
                 related_sentences.append(s)
 
             elif (s._.has_start_quote or s._.has_end_quote):

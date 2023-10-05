@@ -60,9 +60,9 @@ def match(names, queryset):
     tb_config = tb_matcher.config
 
     tb_config.scorers_by_column.SCORERS.update({
-        'partial_token_sort_ratio': lambda x, y: fuzz.partial_token_sort_ratio(str(x).lower(), str(y.lower()))
+        'token_set_ratio': lambda x, y: fuzz.token_set_ratio(str(x).lower(), str(y.lower()))
     })
-    tb_config.scorers_by_column.default = 'partial_token_sort_ratio'
+    tb_config.scorers_by_column.default = 'token_set_ratio'
     tb_config.thresholds_by_column.default = 85
 
     tb_config.populate()
@@ -75,8 +75,19 @@ def match(names, queryset):
     tb_matcher.duplicate_threshold = 100
 
     records_matched, _ = tb_matcher.match()
+
+    for record in records_matched.values():
+        record['candidate_id'] = [record['candidate_id']] if record['candidate_id'] else []
+        record['candidate_name'] = [record['candidate_name']] if record['candidate_name'] else []
+        
+        if record['match_status'] == 'AMBIGUOUS':
+            for i in record['row(s)_matched'].split(','):
+                record['candidate_id'].append(queryset[int(i.strip())]['candidate_id'])
+                record['candidate_name'].append(queryset[int(i.strip())]['candidate_name'])
+
     for k,v in records_matched.items():
         print(k,v)
+
     return {record['name']: record for record in records_matched.values()}
 
 
