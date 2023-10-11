@@ -1,5 +1,4 @@
 from importlib import import_module
-import importlib
 from pathlib import Path
 
 # Internal library packages and modules
