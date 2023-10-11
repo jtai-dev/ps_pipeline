@@ -21,7 +21,7 @@ setup_info = {'name':'ps_automation',
               'author': 'Johanan Tai',
               'author_email': 'jtai.dvlp@gmail.com',
               'url':'https://github.com/jtai-dev/ps_automation',
-              'packages':['ps_automation'],
+              'packages':[],
               'install_requires': install_requires}
 
 setup(**setup_info)
