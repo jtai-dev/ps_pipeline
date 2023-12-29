@@ -18,6 +18,8 @@ from transform.nlp import Doc, Span
 from json_model import Articles, TransformedArticles
 
 
+
+
 """
 TRANSFORM JSON MODEL:
 
