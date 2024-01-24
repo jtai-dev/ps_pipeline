@@ -1,9 +1,8 @@
 selenium
 bs4
-spacy
 unidecode
-pg8000
+psycopg
 rapidfuzz
 tqdm
-
+spacy
 # git+ssh://git@github.com/jtai-dev/tabular_matcher.git#egg=tabular_matcher
