@@ -1,10 +1,12 @@
 
 import sys
 import json
-from dateutil.parser import parse as datetimeparser
 from pathlib import Path
+from dateutil.parser import parse as datetimeparser
+
 
 import spacy
+from spacy.language import Language
 from tqdm import tqdm
 from unidecode import unidecode
 
@@ -14,7 +16,6 @@ if __name__ == '__main__':
 
 # Importing the modified Doc and Span classes (ignore greyed out)
 from transform.nlp import Doc, Span
-
 from json_model import Articles, TransformedArticles
 
 
@@ -123,9 +124,16 @@ TODO:
 """
 
 def main(articlejson:Articles):
+    
+    @Language.component("set_custom_boundaries")
+    def _set_custom_boundaries(doc):
+        for token in doc[:-1]:
+                if token.text == '\n':
+                        doc[token.i + 1].is_sent_start = True
+        return doc
 
-    # will require to run 'python -m spacy download en_core_web_trf'
     nlp = spacy.load('en_core_web_trf')
+    nlp.add_pipe("set_custom_boundaries", before="parser")
 
     data = []
 

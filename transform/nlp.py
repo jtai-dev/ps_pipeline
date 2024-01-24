@@ -1,17 +1,62 @@
-
 # Built-ins
 import re
-from collections import defaultdict, namedtuple
 
 # External packages and libraries
 from spacy.tokens import Doc, Span
 
 
-ATTRIBUTIVE_TAGS = ['announce', 'say', 'declare', 'affirm', 'explain', 'assert', 'state', 'express', 'mention', 'add', 'clarify', 'comment',
-                    'communicate', 'quote', 'report', 'observe', 'remark', 'reaffirm', 'recite', 'request', 'respond', 'share', 'suggest',
-                    'invite', 'read', 'predict', 'relate', 'outline', 'elaborate', 'propose', 'articulate', 'highlight', 'imply', 'indicate',
-                    'inquire', 'greet', 'voice', 'enunciate', 'expound', 'quote', 'remark', 'repeat', 'reply', 'speculate', 'convey',
-                    'acknowledge', 'insist', 'ask', 'quiz', 'query']
+ATTRIBUTIVE_TAGS = [
+    "announce",
+    "say",
+    "declare",
+    "affirm",
+    "explain",
+    "assert",
+    "state",
+    "express",
+    "mention",
+    "add",
+    "clarify",
+    "comment",
+    "communicate",
+    "quote",
+    "report",
+    "observe",
+    "remark",
+    "reaffirm",
+    "recite",
+    "request",
+    "respond",
+    "share",
+    "suggest",
+    "invite",
+    "read",
+    "predict",
+    "relate",
+    "outline",
+    "elaborate",
+    "propose",
+    "articulate",
+    "highlight",
+    "imply",
+    "indicate",
+    "inquire",
+    "greet",
+    "voice",
+    "enunciate",
+    "expound",
+    "quote",
+    "remark",
+    "repeat",
+    "reply",
+    "speculate",
+    "convey",
+    "acknowledge",
+    "insist",
+    "ask",
+    "quiz",
+    "query",
+]
 
 
 def span_find_all(span, to_find, pattern=False):
@@ -19,16 +64,18 @@ def span_find_all(span, to_find, pattern=False):
     for m in re.finditer(to_find, span.text):
         found = span.char_span(m.start(), m.end())
         if found:
-            yield span.doc[found.start:found.end]
+            yield span.doc[found.start : found.end]
 
 
 def span_is_right_after(span, target_span):
-    if (span > target_span and
+    if (
+        span > target_span
+        and
         # To account for whitespace
-        0 <= span.start - target_span.end < 2 and
-        '\n' not in span[:2].text and
-        '\n' not in target_span[-2:].text
-        ):
+        0 <= span.start - target_span.end < 2
+        and "\n" not in span[:2].text
+        and "\n" not in target_span[-2:].text
+    ):
         return True
     return False
 
@@ -36,211 +83,274 @@ def span_is_right_after(span, target_span):
 def span_distance(span, target_span) -> int:
     if span > target_span:
         product = span.start - target_span.end
-        return product if product >= 0 else -1
     else:
-        return abs(product) if product <= 0 else -1
+        product = target_span.start - span.end
+    return product if product >= 0 else -1
 
 
 def span_persons(span):
     for s in span.ents:
-        if s.label_ == 'PERSON':
+        if s.label_ == "PERSON":
             # Returns a new span instance that does not change the label from ents
-            yield s.doc.char_span(s.start_char, s.end_char, label='person')
+            yield s.doc.char_span(s.start_char, s.end_char, label="person")
 
 
 def span_locations(span):
     for s in span.ents:
-        if s.label_ == 'GPE':
+        if s.label_ == "GPE":
             # Returns a new span instance that does not change the label from ents
-            yield s.doc.char_span(s.start_char, s.end_char, label='location')
+            yield s.doc.char_span(s.start_char, s.end_char, label="location")
 
 
 def span_attributive_tags(span):
     for token in span:
         if token.lemma_ in ATTRIBUTIVE_TAGS:
-            yield span.doc.char_span(token.idx, token.idx+len(token), label='attributive_tag')
+            yield span.doc.char_span(
+                token.idx, token.idx + len(token), label="attributive_tag"
+            )
 
 
 def span_start_quotes(span):
     for s in span[:2]._.find_all('"'):
-        yield s.doc.char_span(s.start_char, s.end_char, label='start_quote')
+        yield s.doc.char_span(s.start_char, s.end_char, label="start_quote")
 
 
 def span_mid_quotes(span):
     for s in span[2:-2]._.find_all(r"[\,|\:|\s]+\"+", pattern=True):
-        yield s.doc.char_span(s.start_char, s.end_char, label='mid_quote')
+        yield s.doc.char_span(s.start_char, s.end_char, label="mid_quote")
 
 
 def span_end_quotes(span):
     for s in span[-2:]._.find_all('"'):
-        yield s.doc.char_span(s.start_char, s.end_char, label='end_quote')
-    
+        yield s.doc.char_span(s.start_char, s.end_char, label="end_quote")
+
+
+def span_clean_attributed(span, mq_pos, order):
+    if order.startswith("start_attributed"):
+        span._.to_replace.add(span.doc.char_span(span.start_char, mq_pos))
+    elif order.startswith("end_attributed"):
+        if (
+            span.end > 0
+            and span.char_span(-2, -1)
+            and span.char_span(-2, -1).text == "."
+        ):
+            span._.to_replace.add(span.doc.char_span(mq_pos, span.end_char - 1))
+        else:
+            span._.to_replace.add(span.doc.char_span(mq_pos, span.end_char))
+
 
 def span_attributed_to(span):
-    if not(any(span._.mid_quotes) and any(span._.persons) and any(span._.attributive_tags)):
-        yield from ()
-    spans = sorted(list(span._.persons) + list(span._.attributive_tags) + list(span._.mid_quotes))
-    for i in range(len(spans)-2):
-        # End attributed
-        if (spans[i].label_=='mid_quote' and spans[i+1].label_=='attributive_tag' and spans[i+2].label_=='person'):
-            if 0 <= spans[i+1]._.dist(spans[i]) <= 2:
-                if span.end > 0 and span.char_span(-2,-1) and span.char_span(-2,-1).text == '.':
-                    span_to_replace=span.doc.char_span(spans[i].start_char,span.end_char-1)
-                else:
-                    span_to_replace=span.doc.char_span(spans[i].start_char,span.end_char)
-                span._.to_replace.add(span_to_replace)
-                yield spans[i+2]
-        # End attributed
-        elif (spans[i].label_=='mid_quote' and spans[i+1].label_=='person' and spans[i+2].label_=='attributive_tag'):
-            if 0 <= spans[i+1]._.dist(spans[i]) <= 3:
-                if span.end > 0 and span.char_span(-2,-1) and span.char_span(-2,-1).text == '.':
-                    span_to_replace=span.doc.char_span(spans[i].start_char,span.end_char-1)
-                else:
-                    span_to_replace=span.doc.char_span(spans[i].start_char,span.end_char)
-                span._.to_replace.add(span_to_replace)
-                yield spans[i+1]
-        # Start attributed
-        elif (spans[i].label_=='person' and spans[i+1].label_=='attributive_tag' and spans[i+2].label_=='mid_quote'):
-            if 0 <= spans[i+1]._.dist(spans[i]) <= 2:
-                span_to_replace=span.doc.char_span(span.start_char, spans[i+2].end_char)
-                span._.to_replace.add(span_to_replace)
-                yield spans[i]
-
-
-def span_is_attributed(span):
-    if any(span._.mid_quotes) and any(span._.persons) and any(span._.attributive_tags):
-        return False if not any(span._.attributed_to) else True
-    else:
-        return False
+    if not (
+        any(span._.mid_quotes) and any(span._.persons) and any(span._.attributive_tags)
+    ):
+        return
+    spans = sorted(
+        list(span._.persons) + list(span._.attributive_tags) + list(span._.mid_quotes)
+    )
+    persons = []
+    for i in range(len(spans) - 2):
+        # End Attributed (Tag First)
+        if (
+            spans[i].label_ == "mid_quote"
+            and spans[i + 1].label_ == "attributive_tag"
+            and spans[i + 2].label_ == "person"
+            and 0 <= spans[i + 1]._.dist(spans[i + 2]) <= 2
+        ):
+            span._.clean_attributed(spans[i].start_char, "end_attributed_tfirst")
+            persons.append(spans[i + 2])
+        # End Attributed (Person First)
+        if (
+            spans[i].label_ == "mid_quote"
+            and spans[i + 1].label_ == "person"
+            and spans[i + 2].label_ == "attributive_tag"
+            and 0 <= spans[i + 1]._.dist(spans[i + 2]) <= 3
+        ):
+            span._.clean_attributed(spans[i].start_char, "end_attributed_pfirst")
+            persons.append(spans[i + 1])
+        # Start Attributed
+        if (
+            spans[i].label_ == "person"
+            and spans[i + 1].label_ == "attributive_tag"
+            and spans[i + 2].label_ == "mid_quote"
+            and 0 <= spans[i + 1]._.dist(spans[i]) <= 2
+        ):
+            span._.clean_attributed(spans[i + 2].start_char, "start_attributed")
+            persons.append(spans[i])
+    if len(persons) == 1:
+        return persons.pop()
 
 
 # Span Extensions (Methods)
-Span.set_extension('dist', method=span_distance, force=True)
-Span.set_extension('find_all', method=span_find_all, force=True)
-Span.set_extension('is_right_after', method=span_is_right_after, force=True)
+Span.set_extension("dist", method=span_distance, force=True)
+Span.set_extension("find_all", method=span_find_all, force=True)
+Span.set_extension("is_right_after", method=span_is_right_after, force=True)
+Span.set_extension("clean_attributed", method=span_clean_attributed, force=True)
 # Span Extensions (Properties)
-Span.set_extension('persons', getter=span_persons, force=True)
-Span.set_extension('locations', getter=span_locations, force=True)
-Span.set_extension('attributive_tags', getter=span_attributive_tags, force=True)
-Span.set_extension('start_quotes', getter=span_start_quotes, force=True)
-Span.set_extension('mid_quotes', getter=span_mid_quotes, force=True)
-Span.set_extension('end_quotes', getter=span_end_quotes, force=True)
-Span.set_extension('attributed_to', getter=span_attributed_to, force=True)
-Span.set_extension('to_replace', default=set(), force=True)
-# Span Extensions (Booleans)
-Span.set_extension('is_attributed',getter=span_is_attributed, force=True)
+Span.set_extension("persons", getter=span_persons, force=True)
+Span.set_extension("locations", getter=span_locations, force=True)
+Span.set_extension("attributive_tags", getter=span_attributive_tags, force=True)
+Span.set_extension("start_quotes", getter=span_start_quotes, force=True)
+Span.set_extension("mid_quotes", getter=span_mid_quotes, force=True)
+Span.set_extension("end_quotes", getter=span_end_quotes, force=True)
+Span.set_extension("attributed_to", getter=span_attributed_to, force=True)
+Span.set_extension("to_replace", default=set(), force=True)
 
 
-def doc_attributed_statements(doc):
+def str_replace_by_position(original, replacements: list[tuple]):
+    modified_strings = []
+    last_position = 0
+    for start, end, replacement in replacements:
+        modified_string = (
+            replacement if start == 0 else original[last_position:start] + replacement
+        )
+        if not replacement:
+            modified_strings.append(modified_string.rstrip())
+        else:
+            modified_strings.append(modified_string)
+        last_position = end
+    modified_strings.append(original[last_position:])
+    return "".join(modified_strings)
+
+
+def doc_attributed_sentences(doc) -> list[dict]:
     """
+    DEPRECATED:
     attributed_sentences =
     {
-        person_1: {
-            index: [span_1, span_2, span_3],
-            index: [span_1, span_2]
+        attributed_1: {
+            index_1: [span_1, span_2, span_3],
+            index_4: [span_1, span_2]
         }
-        person_2: {
-            index: [span_1, span_2, span_3],
-            index: [span_1, span_2]
+        attributed_2: {
+            index_2: [span_1, span_2, span_3],
+            index_3: [span_1, span_2]
         }
     }
+    CURRENT:
+    attributed_sentences =
+    [
+        {
+            attributed: ...
+            spans: [span_1, span_2, ...]
+        },
+        {
+            attributed: ...
+            spans: [span_3, span_4, ...]
+        },
+        ...
+    ]
+    Index is to indicate the position of statements existing within the
+    document.
     """
-    person = None
+    attributed_person = None
     related_sentences = []
-    attributed_sentences = defaultdict(lambda: defaultdict(list))
-    def reset(index):
-        nonlocal related_sentences, person
-        if person:
-            attributed_sentences[person][index] += related_sentences
+    attributed_sentences = []
+
+    def reset():
+        nonlocal related_sentences, attributed_person
+        if attributed_person:
+            attributed_sentences.append(
+                {"attributed": attributed_person, "sentences": related_sentences.copy()}
+            )
+        attributed_person = None
         related_sentences.clear()
-        person = None
-    for i, s in enumerate(doc.sents):
-        persons = list(s._.attributed_to)
+
+    for s in doc.sents:
+        attributed_to = s._.attributed_to
+        s._.to_replace.update(set(s._.start_quotes))
+        s._.to_replace.update(set(s._.end_quotes))
+        # Check if related_sentences exists to prevent a key-error
         if related_sentences and s._.is_right_after(related_sentences[-1]):
-            if len(persons) == 1:
-                person = persons.pop()
+            if attributed_to:
+                if attributed_person and attributed_person != attributed_to:
+                    reset()
+                attributed_person = attributed_to
                 related_sentences.append(s)
             elif any(s._.start_quotes):
-                if related_sentences[-1]._.is_attributed:
-                    related_sentences.append(s)
-                else:
-                    reset(i-1)
-                    related_sentences.append(s)
+                if not attributed_person:
+                    # Since an open quote should only exist as first in the
+                    # related sentence list, having it when there are no attributed_to
+                    # would not be considered related, hence resetting it.
+                    reset()
+                related_sentences.append(s)
             elif any(s._.end_quotes):
                 related_sentences.append(s)
-                reset(i)
+                reset()  # Having an end quoted most likely ends the relation.
             else:
-                # TODO: Sentences with no open or end quote are subject to
-                # related sentences if one of the sentence in the related
-                # sentences is attributed and none of the currently 
-                # related sentences contains an end quote.
-                if not (related_sentences[-1]._.is_attributed):
-                    # Since the current sentence does not have 
-                    # an open or an end quote, it would only be related 
-                    # if the previous sentence is not attributed
+                # Sentences with no open or end quote are subject to
+                # related sentences if the following are true:
+                #   i) One of the current related sentences is attributed (person!=None)
+                #  ii) None of the current related sentences contains an end quote (which
+                #      is already taken care of above)
+                # iii) Sentence immediately before the current sentence is attributed
+                if attributed_person:
                     related_sentences.append(s)
         else:
-            reset(i-1)
-            if len(persons) == 1:
-                person = persons.pop()
+            reset()  # Makes sure that it would be the first of the related sentences
+            if attributed_to:
+                attributed_person = attributed_to
                 related_sentences.append(s)
-            elif (any(s._.start_quotes) or any(s._.end_quotes)):
+            elif any(s._.start_quotes):
                 related_sentences.append(s)
     return attributed_sentences
 
 
-def json_attributed_sentences(attributed_sentences):
+def doc_attributed_statements(doc):
     """
-    {
-    'attributed': ...,
-    'content': [
+    DEPRECATED:
+    [
         {
-        'start': ...,
-        'end': ...,
-        'replaces':[
-            {
-            'start': ...,
-            'end': ...,
-            },
-            ...
+        'attributed': ...,
+        'content': [
+                {
+                'start': ...,
+                'end': ...,
+                'replaces':[
+                    {
+                    'start': ...,
+                    'end': ...,
+                    },
+                    ...
+                    ]
+                },
             ]
+        }
+    ],
+    CURRENT:
+    attributed_statements =
+    [
+        {
+            'attributed': ...
+            'text': ...
         },
+        {
+            'attributed': ...
+            'text': ...
+        }
+        ...
     ]
-    },
     """
-    statements = []
-    for person, sentences in attributed_sentences.items():
-        statement = defaultdict(list)
-        contents = []
-
-        for spans in sentences.values():
-            content = {
-                'text': "".join(span.text for span in spans),
-                # TODO: Make sure to reflect change in the json_model.py
-                'to_replace': [],
-            }
-            for span in spans:
-                for s in span._.to_replace:
-                    content['to_replace'].append(
-                        {
-                            'start': s.start_char - spans[0].start_char,
-                            'end': s.end_char - spans[0].start_char
-                        }
-                    )
-            contents.append(content)
-        statement['attributed'].append(person)
-        statement['contents'] += contents
-        statements.append(statement)
-
-    return statements
+    attributed_statements = []
+    for d in doc._.attributed_sentences:
+        cleaned_texts = []
+        for span in d["sentences"]:
+            to_replace = []
+            for tr in span._.to_replace:
+                start = tr.start_char - span.start_char
+                end = tr.end_char - span.start_char
+                to_replace.append((start, end, ""))
+            cleaned_texts.append(str_replace_by_position(span.text, to_replace))
+        attributed_statements.append(
+            {"attributed": d["attributed"], "text": " ".join(cleaned_texts)}
+        )
+    return attributed_statements
 
 
 def doc_publish_location(doc):
     # Location Criteria:
     # 1) Has to be a starting token of the sentence
     # 2) At least one GPE token followed by a dash
-    location_pattern = re.compile(
-        r'(?P<location>[A-Za-z]{2,}\,?\s?[A-Za-z\.?]+)\s+-+')
+    location_pattern = re.compile(r"(?P<location>[A-Za-z]{2,}\,?\s?[A-Za-z\.?]+)\s+-+")
 
     for sentence in doc.sents:
         for token_pos in sentence._.locations:
@@ -250,11 +360,12 @@ def doc_publish_location(doc):
                 # at the start of the sentence, return it otherwise None
                 for m in results:
                     if m.start() == sentence.start:
-                        return m.group('location')
+                        return m.group("location")
 
-    return 'Unknown'
+    return "Unknown"
 
 
 # Doc Extensions
-Doc.set_extension('publish_location', getter=doc_publish_location, force=True)
-Doc.set_extension('attributed_statements',getter=doc_attributed_statements, force=True)
+Doc.set_extension("publish_location", getter=doc_publish_location, force=True)
+Doc.set_extension("attributed_sentences", getter=doc_attributed_sentences, force=True)
+Doc.set_extension("attributed_statements", getter=doc_attributed_statements, force=True)
