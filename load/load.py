@@ -1,7 +1,6 @@
 import json
 from urllib.parse import urlparse
 
-from datetime import datetime
 from dateutil.parser import parse as datetimeparser
 from pathlib import Path
 from collections import defaultdict
@@ -137,50 +136,43 @@ def match_names_to_ids():
     pass
 
 
-def main(transformed_json: TransformedArticles):
-    name_ids = match(transformed_json)
-    data = []
+def main(transformed_articles: TransformedArticles):
+    name_to_info = match(transformed_articles)
+    harvest_data = []
 
-    for record in transformed_json.all:
+    for article in transformed_articles.all:
 
-        title = record.title
-        speechdate = datetimeparser(record.timestamp).strftime('%Y-%m-%d')
-        location = record.publish_location
-        url = record.url
+        title = article.title
+        speechdate = datetimeparser(article.timestamp).strftime('%Y-%m-%d')
+        location = article.publish_location
+        url = article.url
         exists = []
 
-        for nlp_extract in record.statements.all:
-            candidate_id_statements = defaultdict(dict)
+        candidate_id_statements = defaultdict(dict)
+        
+        for statement in article.statements.all:
+            
             candidate_id_review = defaultdict(dict)
-            speechtype_id = SPEECH_MAP.get(nlp_extract.name)
+            speechtype_id = SPEECH_MAP.get(statement.name)
             speechtype = SPEECHTYPE.get(speechtype_id)
 
             # Check to see if it contains statements at all.
-            for name in nlp_extract.attributed:
-                match_info = name_ids[name]
-                candidate_ids = match_info['candidate_id']
-                match_status = match_info['match_status']
+            match_info = name_to_info[statement.attributed]
+            candidate_ids = match_info['candidate_id']
+            match_status = match_info['match_status']
 
-                if candidate_ids:
-                    for candidate_id in candidate_ids:
-
-                        if match_status == 'REVIEW':
-                            candidate_id_review[candidate_id]['review'] = True
-                            candidate_id_review[candidate_id]['review_message'] = "Candidate name may not be matched correctly"
-                        elif match_status == 'AMBIGUOUS':
-                            candidate_id_review[candidate_id]['review'] = True
-                            candidate_id_review[candidate_id]['review_message'] = "Candidate names are matched ambiguously"
-                        else:
-                            candidate_id_review[candidate_id]['review'] = False
-                            candidate_id_review[candidate_id]['review_message'] = None
-
-                        for content in nlp_extract.contents.all:
-                            content_text = content.text
-                            for to_replace in content.to_replace.all:
-                                content_text = content_text.replace(
-                                    content.text[to_replace.start: to_replace.end], "")
-                                
-                            candidate_id_statements[candidate_id].update({content.start:content_text})
+            for candidate_id in candidate_ids:
+                if match_status == 'REVIEW':
+                    candidate_id_review[candidate_id]['review'] = True
+                    candidate_id_review[candidate_id]['review_message'] = "Candidate name may not be matched correctly"
+                elif match_status == 'AMBIGUOUS':
+                    candidate_id_review[candidate_id]['review'] = True
+                    candidate_id_review[candidate_id]['review_message'] = "Candidate names are matched ambiguously"
+                else:
+                    candidate_id_review[candidate_id]['review'] = False
+                    candidate_id_review[candidate_id]['review_message'] = None
+                        
+                candidate_id_statements[candidate_id].update(statement.text)
 
             if candidate_id_statements:
                 exists.append(True)
@@ -189,7 +181,7 @@ def main(transformed_json: TransformedArticles):
 
             for candidate_id, statements in candidate_id_statements.items():
 
-                data.append(
+                harvest_data.append(
                     {
                         'candidate_id': candidate_id,
                         'speechtype_id': speechtype_id,
@@ -203,7 +195,7 @@ def main(transformed_json: TransformedArticles):
 
         if not any(exists):
 
-            data.append(
+            harvest_data.append(
                 {
                     'candidate_id': URLS.get(urlparse(url).netloc),
                     'speechtype_id': 17,
@@ -217,7 +209,7 @@ def main(transformed_json: TransformedArticles):
                     'review_message': "Nothing is extracted from this article."
                 })
 
-    return HarvestExpanded(data)
+    return HarvestExpanded(harvest_data)
 
 
 if __name__ == '__main__':

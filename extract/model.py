@@ -32,7 +32,7 @@ class HTMLSoup:
 
         return _registered
 
-    def save(self, filename, filepath):
+    def save_to_file(self, filename, filepath):
 
         filepath = Path(filepath)
         timestamp = datetime.strftime(datetime.now(), '%Y-%m-%d-%H%M%S-%f')

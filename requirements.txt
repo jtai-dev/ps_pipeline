@@ -1,8 +1,10 @@
 selenium
 bs4
+spacy
+python-dateutil
 unidecode
+python-dotenv
 psycopg
 rapidfuzz
 tqdm
-spacy
-# git+ssh://git@github.com/jtai-dev/tabular_matcher.git#egg=tabular_matcher
+git+ssh://git@github.com/jtai-dev/record_matcher.git#egg=record_matcher

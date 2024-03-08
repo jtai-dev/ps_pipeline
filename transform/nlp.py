@@ -214,19 +214,6 @@ def str_replace_by_position(original, replacements: list[tuple]):
 
 def doc_attributed_sentences(doc) -> list[dict]:
     """
-    DEPRECATED:
-    attributed_sentences =
-    {
-        attributed_1: {
-            index_1: [span_1, span_2, span_3],
-            index_4: [span_1, span_2]
-        }
-        attributed_2: {
-            index_2: [span_1, span_2, span_3],
-            index_3: [span_1, span_2]
-        }
-    }
-    CURRENT:
     attributed_sentences =
     [
         {
@@ -239,8 +226,6 @@ def doc_attributed_sentences(doc) -> list[dict]:
         },
         ...
     ]
-    Index is to indicate the position of statements existing within the
-    document.
     """
     attributed_person = None
     related_sentences = []
@@ -297,34 +282,14 @@ def doc_attributed_sentences(doc) -> list[dict]:
 
 def doc_attributed_statements(doc):
     """
-    DEPRECATED:
-    [
-        {
-        'attributed': ...,
-        'content': [
-                {
-                'start': ...,
-                'end': ...,
-                'replaces':[
-                    {
-                    'start': ...,
-                    'end': ...,
-                    },
-                    ...
-                    ]
-                },
-            ]
-        }
-    ],
-    CURRENT:
     attributed_statements =
     [
         {
-            'attributed': ...
+            'attributed': [...]
             'text': ...
         },
         {
-            'attributed': ...
+            'attributed': [...]
             'text': ...
         }
         ...
@@ -341,7 +306,10 @@ def doc_attributed_statements(doc):
                 to_replace.append((start, end, ""))
             cleaned_texts.append(str_replace_by_position(span.text, to_replace))
         attributed_statements.append(
-            {"attributed": d["attributed"], "text": " ".join(cleaned_texts)}
+            {
+                "attributed": d["attributed"], 
+                "text": " ".join(cleaned_texts)
+             }
         )
     return attributed_statements
 
