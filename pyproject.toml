@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ps_automation"
+description = "A data pipeline for Vote Smart's Public Statements"
+authors = [{ name = "Johanan Tai", email = "jtai.dvlp@gmail.com" }]
+readme = "README.rst"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+dynamic = ["version"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = [
+    "selenium",
+    "bs4",
+    "spacy",
+    "dateutil",
+    "unidecode",
+    "python-dotenv",
+    "psycopg",
+    "rapidfuzz",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+dev = ['pytest']

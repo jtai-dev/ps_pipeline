@@ -1,9 +1,3 @@
-/*
-Author: Johanan Tai
-Description: Queries office candidates (incumbents) by the start to the end of their terms
-*/
-
-
 SELECT
 	DISTINCT
     candidate.candidate_id,
