@@ -1,18 +1,21 @@
 import json
 from datetime import datetime
-from dateutil import parser as datetime_parser
+from dateutil.parser import parse as datetimeparse
 from pathlib import Path
 
 
 class JSONObject:
-    def __init__(self, data: dict | list, name: str = "root", as_root: bool = True):
+    def __init__(self, data: dict | list, as_root: bool = True):
         self.__as_root = as_root
-        self.name = name
         self._data = data
 
     @property
     def _data(self):
         return self.__data
+
+    @property
+    def name(self):
+        return self.__class__.__name__
 
     @_data.setter
     def _data(self, data):
@@ -32,15 +35,19 @@ class JSONObject:
             except KeyError:
                 return None
 
-    def save(self, filename, filepath):
-        filepath = Path(filepath)
-        filepath.mkdir(exist_ok=True)
+    def save(self, export_path: Path, filename=None):
+
+        export_path.mkdir(exist_ok=True)
         timestamp = datetime.strftime(datetime.now(), "%Y-%m-%d-%H%M%S-%f")
 
         with open(
-            filepath / f"{filename}_{self.__class__.__name__}_{timestamp}.json", "w"
+            export_path / f"{filename if filename else ''}{self.name}_{timestamp}.json",
+            "w",
         ) as f:
             f.write(str(self))
+
+    def __len__(self):
+        return len(self._data)
 
     def __str__(self) -> str:
         if self.__as_root:
@@ -53,8 +60,8 @@ class JSONObject:
 
 
 class Article(JSONObject):
-    def __init__(self, data: dict, name="article", as_root=True):
-        super().__init__(data, name, as_root)
+    def __init__(self, data: dict):
+        super().__init__(data)
 
     @property
     def title(self):
@@ -84,10 +91,14 @@ class Article(JSONObject):
     def publish_location(self):
         return self.get("publish_location")
 
+    @property
+    def web_id(self):
+        return self.get("web_candidate_id")
+
 
 class Articles(JSONObject):
-    def __init__(self, data: list, name: str = "articles"):
-        super().__init__(data, name)
+    def __init__(self, data: list):
+        super().__init__(data)
 
     @property
     def all(self) -> list[Article]:
@@ -101,7 +112,8 @@ class Articles(JSONObject):
         datetimes = set()
 
         for article in self.all:
-            datetimes.add(datetime_parser.parse(article.timestamp))
+            if article.timestamp:
+                datetimes.add(datetimeparse(article.timestamp))
 
         return max(datetimes)
 
@@ -115,29 +127,30 @@ class Articles(JSONObject):
         return urls
 
 
-# ===============#
-### TRANSFORM ###
+# ===============
+#   TRANSFORM
+# ===============
 class TransformedArticle(Article):
-    def __init__(self, data: dict, name="transformed_article"):
-        super().__init__(data, name=name)
+    def __init__(self, data: dict):
+        super().__init__(data)
 
     @property
-    def statements(self):
-        return Statements(self.get("statements"), name="statements")
-    
+    def nlp_extracts(self):
+        return NLPExtracts(self.get("statements"))
+
 
 class TransformedArticles(JSONObject):
-    def __init__(self, data: dict | list, name: str = "root", as_root: bool = True):
-        super().__init__(data, name, as_root)
+    def __init__(self, data: dict | list):
+        super().__init__(data)
 
     @property
     def all(self) -> list[TransformedArticle]:
         return [TransformedArticle(article) for article in self._data]
 
 
-class Statement(JSONObject):
-    def __init__(self, data: dict, name: str = "nlp_extract", as_root: bool = True):
-        super().__init__(data, name, as_root)
+class NLPExtract(JSONObject):
+    def __init__(self, data: dict):
+        super().__init__(data)
 
     @property
     def attributed(self):
@@ -146,57 +159,38 @@ class Statement(JSONObject):
     @property
     def text(self):
         return self.get("text")
+    
+    @property
+    def text_type(self):
+        return self.get("text_type")
+    
+    @property
+    def classification(self):
+        return self.get("classification")
 
 
-class Statements(JSONObject):
-    def __init__(self, data: list, name: str = "nlp_extracts"):
-        super().__init__(data, name)
+class NLPExtracts(JSONObject):
+    def __init__(self, data: list):
+        super().__init__(data)
 
     @property
-    def all(self) -> list[Statement]:
-        return [
-            Statement(statement, name=self.name) for statement in self._data
-        ]
-# ***************#
-
-
-# ===============#
-### LOAD ###
-class HarvestExpanded(JSONObject):
-    def __init__(self, data: dict | list, name: str = "harvest", as_root: bool = True):
-        super().__init__(data, name, as_root)
+    def all(self) -> list[NLPExtract]:
+        return [NLPExtract(extract) for extract in self._data]
 
     @property
-    def candidate_id(self):
-        return self.get("candidate_id")
-
-    @property
-    def candidate_name(self):
-        return self.get("candidate_name")
-
-    @property
-    def harvests(self):
-        return self.get("harvests")
+    def all_attributed(self):
+        return {extract.attributed for extract in self.all if extract.attributed}
 
 
-class Harvests(JSONObject):
-    def __init__(self, data: list, name: str = "harvests", as_root: bool = True):
-        super().__init__(data, name, as_root)
-
-    def all(self):
-        return [Harvest(harvest) for harvest in self._data]
+#   ###
 
 
-class Harvest(JSONObject):
-    def __init__(self, data: dict, name: str = "harvest", as_root: bool = True):
-        super().__init__(data, name, as_root)
-
-
-class CondensedHarvest(JSONObject):
-    def __init__(
-        self, data: dict, name: str = "condensed_harvest", as_root: bool = True
-    ):
-        super().__init__(data, name, as_root)
+# ===============
+#      LOAD
+# ===============
+class HarvestArticle(JSONObject):
+    def __init__(self, data: dict):
+        super().__init__(data)
 
     @property
     def candidate_id(self):
@@ -232,18 +226,16 @@ class CondensedHarvest(JSONObject):
 
     @property
     def review_message(self) -> str:
-        return self.get("review_message")
+        return self.get("review_msg")
 
 
-class CondensedHarvests(JSONObject):
-    def __init__(
-        self, data: dict | list, name: str = "condensed_harvests", as_root: bool = True
-    ):
-        super().__init__(data, name, as_root)
+class HarvestArticles(JSONObject):
+    def __init__(self, data: dict | list):
+        super().__init__(data)
 
     @property
-    def all(self) -> list[CondensedHarvest]:
-        return [CondensedHarvest(harvest) for harvest in self._data]
+    def all(self) -> list[HarvestArticle]:
+        return [HarvestArticle(harvest) for harvest in self._data]
 
 
-# **************#
+#   ###

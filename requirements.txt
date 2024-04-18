@@ -1,8 +1,8 @@
 selenium
 bs4
 spacy
-python-dateutil
 unidecode
+python-dateutil
 python-dotenv
 psycopg
 rapidfuzz
