@@ -3,7 +3,6 @@ import json
 import psycopg
 import os
 
-
 from pathlib import Path
 from tqdm import tqdm
 from dotenv import load_dotenv
@@ -83,8 +82,9 @@ def main():
         transformed_articles,
         vsdb_connection,
     ):
-        harvest_data.append(harvest_article)
-        progress_bar.update(1)
+        if harvest_article not in harvest_data:
+            harvest_data.append(harvest_article)
+            progress_bar.update(1)
 
     HarvestArticles(harvest_data).save(harvest_path)
 

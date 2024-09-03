@@ -3,7 +3,7 @@ from urllib.parse import urlparse, urljoin
 # External library packages and modules
 from bs4 import BeautifulSoup
 
-from extract.web.model import (
+from ps_pipeline.extract.web.soup_model import (
     ArticleSoup,
     remove_formatting,
 )
@@ -62,11 +62,11 @@ def article_type(soup):
 
 @ArticleSoup.register("text")
 def article_text(soup):
-    header = soup.find("div", {"class": "post-header"})
+    header = soup.find("div", {"class": "content"})
     texts = []
     for p in header.find_next_siblings("p"):
-        remove_formatting(p)
-        texts.append(p.get_text(strip=True, separator="\n"))
+        cleaned_p = remove_formatting(p)
+        texts.append(cleaned_p.get_text(strip=True, separator="\n") if p else "")
 
     return "\n".join(texts)
 

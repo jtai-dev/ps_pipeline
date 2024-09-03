@@ -3,7 +3,7 @@ from urllib.parse import urlparse, urljoin
 # External library packages and modules
 from bs4 import BeautifulSoup
 
-from extract.web.model import (
+from ps_pipeline.extract.web.soup_model import (
     ArticleSoup,
     remove_formatting,
 )
@@ -48,14 +48,14 @@ def article_text(soup):
 
     texts = []
     if final_wrap:
-        remove_formatting(final_wrap)
         for el in final_wrap.contents:
             if el.name and el.attrs not in (
                 {"class": ["videoWrapper"]},
                 {"class": ["tag-container"]},
                 {"class": ["post-social"]},
             ):
-                texts.append(el.get_text(strip=True))
+                cleaned_el = remove_formatting(final_wrap)
+                texts.append(cleaned_el.get_text(strip=True) if cleaned_el else "")
 
     return "\n".join(texts)
 

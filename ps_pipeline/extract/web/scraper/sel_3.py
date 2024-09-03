@@ -5,7 +5,6 @@ from dateutil.parser import parse as datetimeparse
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
@@ -16,7 +15,7 @@ from tqdm import tqdm
 def scrape(
     main_url,
     web_parser,
-    export_path: Path,
+    html_path: Path,
     last_collected=None,
 ):
 
@@ -86,7 +85,7 @@ def scrape(
                 )
 
                 article_soup.save_to_file(
-                    export_path / "HTML_FILES",
+                    html_path / "HTML_FILES",
                     partial_url,
                 )
                 articles.append(article_soup)

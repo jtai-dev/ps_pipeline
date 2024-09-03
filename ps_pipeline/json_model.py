@@ -65,15 +65,23 @@ class Article(JSONObject):
 
     @property
     def title(self):
-        return self.get("article_title")
+        return self.get("title")
+
+    @property
+    def url(self):
+        return self.get("source_url")
 
     @property
     def timestamp(self):
-        return self.get("article_timestamp")
+        return self.get("publish_time")
+
+    @property
+    def publish_location(self):
+        return self.get("publish_location")
 
     @property
     def text(self):
-        return self.get("article_text")
+        return self.get("raw_text")
 
     @property
     def type(self):
@@ -82,14 +90,6 @@ class Article(JSONObject):
     @property
     def tags(self):
         return self.get("article_tags")
-
-    @property
-    def url(self):
-        return self.get("article_url")
-
-    @property
-    def publish_location(self):
-        return self.get("publish_location")
 
     @property
     def web_id(self):
@@ -159,11 +159,11 @@ class NLPExtract(JSONObject):
     @property
     def text(self):
         return self.get("text")
-    
+
     @property
     def text_type(self):
         return self.get("text_type")
-    
+
     @property
     def classification(self):
         return self.get("classification")
@@ -181,7 +181,6 @@ class NLPExtracts(JSONObject):
     def all_attributed(self):
         return {extract.attributed for extract in self.all if extract.attributed}
 
-
 #   ###
 
 
@@ -193,8 +192,8 @@ class HarvestArticle(JSONObject):
         super().__init__(data)
 
     @property
-    def candidate_id(self):
-        return self.get("candidate_id")
+    def candidate_ids(self):
+        return self.get("candidate_ids")
 
     @property
     def speechtype_id(self):

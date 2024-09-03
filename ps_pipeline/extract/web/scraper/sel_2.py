@@ -13,7 +13,7 @@ from tqdm import tqdm
 def scrape(
     main_url,
     web_parser,
-    export_path: Path,
+    html_path: Path,
     last_collected=None,
 ):
 
@@ -69,7 +69,7 @@ def scrape(
                     )
 
                     article_soup.save_to_file(
-                        export_path / "HTML_FILES",
+                        html_path / "HTML_FILES",
                         partial_url,
                     )
                     articles.append(article_soup)

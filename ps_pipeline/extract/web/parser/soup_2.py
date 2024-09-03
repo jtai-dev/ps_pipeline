@@ -3,7 +3,7 @@ from urllib.parse import urlparse, urljoin
 # External library packages and modules
 from bs4 import BeautifulSoup
 
-from extract.web.model import (
+from ps_pipeline.extract.web.soup_model import (
     ArticleSoup,
     remove_formatting,
 )
@@ -45,9 +45,8 @@ def publish_date(soup):
 @ArticleSoup.register("text")
 def article_text(soup):
     content = soup.find("div", {"class": "RawHTML"})
-    if content:
-        remove_formatting(content)
-    return content.get_text(strip=True, separator="\n") if content else None
+    cleaned = remove_formatting(content) if content is not None else content
+    return cleaned.get_text(strip=True, separator="\n") if cleaned else ""
 
 
 @ArticleSoup.register("tags")
@@ -57,6 +56,7 @@ def article_tags(soup):
         li.get_text(strip=True, separator=" ") if li.text else ""
         for li in related_links
     ]
+
 
 @ArticleSoup.register("url")
 def article_url(soup):

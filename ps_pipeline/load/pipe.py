@@ -9,7 +9,7 @@ from record_matcher.matcher import RecordMatcher
 from ps_pipeline.json_model import TransformedArticle
 
 
-def query_as_records(query: str, connection, **params) -> dict[str, str]:
+def query_as_records(query: str, connection, **params) -> dict[int, dict[str, str]]:
     """Converts query results into records"""
     cursor = connection.cursor()
     cursor.execute(query, params)
@@ -56,13 +56,12 @@ def match_records(records_x, records_y) -> dict[int, dict[str, str]]:
 
     tb_config.columns_to_match["name"] = "candidate_name"
     tb_config.columns_to_get["candidate_id"] = "candidate_id"
-    tb_config.columns_to_get["candidate_name"] = "candidate_name"
 
-    tb_matcher.required_threshold = 75
+    tb_matcher.required_threshold = 80
     tb_matcher.duplicate_threshold = 100
 
     # records_matched =
-    # {0: {name:..., candidate_name:..., candidate_id:..., 'match_status':...,  'row(s)_matched':..., 'match_score':...}}
+    # {0: {name:..., candidate_id:..., 'match_status':...,  'row(s)_matched':..., 'match_score':...}}
 
     records_matched, match_info = tb_matcher.match()
     max_key_length = max(match_info, key=lambda x: len(x)) if match_info else 0
@@ -77,7 +76,7 @@ def match_json_names(
     articles_transformed: list[TransformedArticle],
     vsdb_connection,
 ) -> dict[str, dict[str, str]]:
-    
+
     unique_names = set()
 
     for article in articles_transformed:
@@ -88,18 +87,26 @@ def match_json_names(
         load_query_string("office-candidates-active"), vsdb_connection
     )
 
+    # records_matched =
+    # {0: {name:..., candidate_id:..., 'match_status':...,  'row(s)_matched':..., 'match_score':...}}
     records_matched = match_records(records_name, records_query)
 
+    name_to_records = defaultdict(list)
+
     for record in records_matched.values():
-        candidate_ids = []
-
         for i in record["row(s)_matched"].split(","):
+            name = record["name"]
             if i:
-                candidate_ids.append(records_query[int(i.strip())]["candidate_id"])
+                record_query = records_query.get(int(i.strip()))
+                name_to_records[name].append(
+                    {
+                        "candidate_id": record_query.get("candidate_id"),
+                        "match_status": record.get("match_status"),
+                        "match_score": record.get("match_score"),
+                    }
+                )
 
-        record["candidate_id"] = candidate_ids
-
-    return {record["name"]: record for record in records_matched.values()}
+    return name_to_records
 
 
 def harvest_json(
@@ -107,7 +114,7 @@ def harvest_json(
     vsdb_connection,
 ):
 
-    candidate_by_name = match_json_names(articles_transformed, vsdb_connection)
+    name_to_records = match_json_names(articles_transformed, vsdb_connection)
     speechtype_ref = query_as_reference(
         load_query_string("speechtypes"), vsdb_connection
     )
@@ -115,7 +122,7 @@ def harvest_json(
     for article in articles_transformed:
 
         harvest_article = {
-            "candidate_id": None,
+            "candidate_ids": None,
             "speechtype_id": None,
             "title": article.title,
             "speechdate": datetimeparse(article.timestamp).strftime("%Y-%m-%d"),
@@ -126,13 +133,17 @@ def harvest_json(
             "review_msg": None,
         }
 
-        # A candidate could be referenced with a different name in one article
-        harvests_by_candidate = defaultdict(list)
+        # A candidate can make multiple statements that are separated in an article
+        harvests_by_candidates = defaultdict(list)
 
         for nlp_extract in article.nlp_extracts.all:
 
-            matching_vsdb_record = candidate_by_name.get(nlp_extract.attributed)
+            vsdb_records = name_to_records.get(nlp_extract.attributed)
 
+            if vsdb_records is None:
+                continue
+
+            # Make a copy of the harvest article, so that it doesn't override one another
             _harvest_article = harvest_article | {
                 "speechtype_id": (
                     speechtype_ref.get(nlp_extract.classification)
@@ -142,39 +153,52 @@ def harvest_json(
                 "speechtext": nlp_extract.text,
             }
 
-            # One statement may be attributed to multiple candidates,
-            # especially if there is ambiguity in the matches
-            for candidate_id in matching_vsdb_record["candidate_id"]:
+            _harvest_article["candidate_ids"] = []
+
+            # Applying name match to the matching name records
+            for record in vsdb_records:
                 review_dict = {}
-                if matching_vsdb_record["match_status"] == "REVIEW":
-                    review_dict = {
-                        "review": True,
-                        "review_msg": "This candidate may not have said this.",
-                    }
-                elif matching_vsdb_record["match_status"] == "AMBIGUOUS":
-                    review_dict = {
-                        "review": True,
-                        "review_msg": "The text may have been spoken by another candidate",
-                    }
-                harvests_by_candidate[candidate_id].append(
+                if record["match_status"] == "REVIEW":
+                    review_dict.update(
+                        {
+                            "review": True,
+                            "review_msg": "This candidate may not have said this.",
+                        }
+                    )
+                # One statement may be attributed to multiple candidates,
+                # when there is ambiguity in the matches
+                elif record["match_status"] == "AMBIGUOUS":
+                    review_dict.update(
+                        {
+                            "review": True,
+                            "review_msg": "The text may have been spoken by another candidate",
+                        }
+                    )
+
+                candidate_id = record["candidate_id"]
+                _harvest_article["candidate_ids"].append(candidate_id)
+
+                harvests_by_candidates[candidate_id].append(
                     _harvest_article | review_dict
                 )
 
         # Treats each speechtext by speechtype as a separate entry
-        for candidate_id, harvests in harvests_by_candidate.items():
-            s = {}
-            # Combine the text by speechtype_ids
+        for _, harvests in harvests_by_candidates.items():
+            harvest_by_speechtype = defaultdict(lambda: harvest_article)
+
+            # Group and combine the text by speechtype_ids
             for h in harvests:
                 st_id = h.get("speechtype_id")
-                if st_id not in s:
-                    s[st_id] = h
+                if st_id not in harvest_by_speechtype:
+                    harvest_by_speechtype[st_id] = h
                 else:
-                    s[st_id]["speechtext"] += "\n\n" + h.get("speechtext")
+                    harvest_by_speechtype[st_id]["speechtext"] += "\n\n" + h.get(
+                        "speechtext"
+                    )
 
             # Finally, assign each harvest dict their ids
-            for speechtype_id, harvest in s.items():
+            for speechtype_id, harvest in harvest_by_speechtype.items():
                 harvest |= {
-                    "candidate_id": candidate_id,
                     "speechtype_id": speechtype_id,
                 }
                 yield harvest

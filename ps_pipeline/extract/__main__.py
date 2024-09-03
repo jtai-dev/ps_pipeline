@@ -189,7 +189,7 @@ def main():
 
     load_dotenv()
 
-    parser = argparse.ArgumentParser(prog="ps_automation_webscrape_1")
+    parser = argparse.ArgumentParser(prog="ps_pipeline_webscrape")
 
     parser.add_argument(
         "-c",
@@ -202,12 +202,14 @@ def main():
         "-e",
         "--extract_from_files",
         action="store_true",
+        help="Extract from HTML files",
     )
 
     parser.add_argument(
         "-ce",
         "--compare",
         action="store_false",
+        help="Compare with older extract",
     )
 
     args = parser.parse_args()
@@ -221,11 +223,13 @@ def main():
     html_path = data_directory / args.candidate_id / "HTML_FILES"
     extract_path = data_directory / args.candidate_id / "EXTRACT_FILES"
 
-    webparser = import_module(f"extract.web.parser.{candidate_source.get('parser')}")
+    webparser = import_module(
+        f"ps_pipeline.extract.web.parser.{candidate_source.get('parser')}"
+    )
 
     if not args.extract_from_files:
         webscraper = import_module(
-            f"extract.web.scraper.{candidate_source.get('scraper')}"
+            f"ps_pipeline.extract.web.scraper.{candidate_source.get('scraper')}"
         )
         extract_files = filter(
             lambda f: f.name.endswith(".json"), extract_path.iterdir()
@@ -243,16 +247,14 @@ def main():
             webparser,
             html_path,
             max(latest_list) if latest_list else None,
-        ) | {'web_candidate_id': args.candidate_id}
+        )
 
     else:
         if not html_path.exists():
             print("Could not find HTML files to extract")
             exit()
 
-        articles_extracted = extract_from_files(
-            webparser, html_path
-        ) | {'web_candidate_id': args.candidate_id}
+        articles_extracted = extract_from_files(webparser, html_path)
 
     articles_json = Articles(articles_extracted)
     articles_json.save(

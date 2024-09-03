@@ -7,4 +7,5 @@ python-dotenv
 psycopg
 rapidfuzz
 tqdm
+pytest
 git+ssh://git@github.com/jtai-dev/record_matcher.git#egg=record_matcher

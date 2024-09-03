@@ -3,7 +3,7 @@ from urllib.parse import urlparse, urljoin
 # External library packages and modules
 from bs4 import BeautifulSoup
 
-from extract.web.model import (
+from ps_pipeline.extract.web.soup_model import (
     ArticleSoup,
     remove_formatting,
 )
@@ -50,13 +50,18 @@ def article_text(soup):
     press_content = soup.find("div", {"id": ["press", "pressrelease"]})
     texts = []
     if press_content:
-        remove_formatting(press_content)
+        # remove_formatting(press_content)
         for el in press_content.contents:
             if el.name and el.attrs not in (
                 {"class": ["date", "black"]},
                 {"class": ["main_page_title"]},
             ):
-                texts.append(el.get_text(strip=True, separator="\n"))
+                cleaned_el = remove_formatting(el)
+                texts.append(
+                    cleaned_el.get_text(strip=True, separator="\n")
+                    if cleaned_el
+                    else ""
+                )
 
     # subtitle = '\n'.join([s.get_text(strip=True, separator='\n') for s in content.find_all(attrs={'class':'subtitle'})])
     # paragraphs = '\n'.join([p..get_text(strip=True, separator='\n') for p in content.find_all('p')])

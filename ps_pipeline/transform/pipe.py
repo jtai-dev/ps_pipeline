@@ -6,11 +6,11 @@ from dateutil.parser import parse as datetimeparse
 import spacy
 from unidecode import unidecode as asciify
 
-from ps_pipeline.json_model import Articles
 from ps_pipeline.transform.nlp import (
     attributed_statements as nlp_attributed_statements,
     articles as nlp_articles,
 )
+from ps_pipeline.json_model import Articles
 
 
 datetime_ISO = re.compile(
@@ -51,28 +51,32 @@ def transform_date(text):
     return text
 
 
-def replace_str_by_position(original, replacements: list[tuple]):
+def replace_str_by_position(original, replacements: list[tuple[tuple[int, int], str]]):
+    """
+    replacement: (start_char, end_char, replace_with)
+
+    """
+
     modified_strings = []
     last_position = 0
-    for start, end, replacement in replacements:
+
+    # replacements have to be sorted in order to work correctly
+    for start_char, end_char, replacement in sorted(replacements):
+
         modified_string = (
-            replacement if start == 0 else original[last_position:start] + replacement
+            replacement
+            if start_char == 0
+            else original[last_position:start_char] + replacement
         )
         if not replacement:
             modified_strings.append(modified_string.rstrip())
         else:
             modified_strings.append(modified_string)
-        last_position = end
+
+        last_position = end_char
+
     modified_strings.append(original[last_position:])
     return "".join(modified_strings)
-
-
-@spacy.Language.component("set_newline_as_sentence_start")
-def _set_newline_as_sentence_start(doc):
-    for token in doc[:-1]:
-        if token.text == "\n":
-            doc[token.i + 1].is_sent_start = True
-    return doc
 
 
 def extract_attributive_statements(doc):
@@ -84,17 +88,24 @@ def extract_attributive_statements(doc):
     for d in doc._.attributive_spans:
         cleaned_texts = []
         for span in d["spans"]:
+            # A sorted to_replace is needed due to span._.to_replace being a set
             to_replace = []
-            for tr in span._.to_replace:
-                start = tr.start_char - span.start_char
-                end = tr.end_char - span.start_char
-                to_replace.append((start, end, ""))
-            cleaned_texts.append(replace_str_by_position(span.text, to_replace))
 
+            for tr_span, replace_text in span._.to_replace:
+                start_char = tr_span.start_char - span.start_char
+                end_char = tr_span.end_char - span.start_char
+
+                to_replace.append((start_char, end_char, replace_text))
+
+            cleaned_texts.append(
+                replace_str_by_position(span.text, sorted(to_replace)).strip()
+            )
+
+        cleaned_joined = " ".join(cleaned_texts).strip().strip('"')
         statements.append(
             {
                 "attributed": d["attributed"].text,
-                "text": " ".join(cleaned_texts).strip().strip('"'),
+                "text": f'"{cleaned_joined}"',
                 "text_type": "attributive_statements",
             }
         )
@@ -103,10 +114,12 @@ def extract_attributive_statements(doc):
 
 def transform_json(articles: Articles):
 
-    nlp = spacy.load("en_core_web_sm")
+    nlp = spacy.load("en_core_web_trf")
+
     nlp_articles.register()
 
     nlp.add_pipe("set_newline_as_sentence_start", before="parser")
+    nlp.add_pipe("set_midquote_as_combined_sentence", before="parser")
 
     for article in articles:
 

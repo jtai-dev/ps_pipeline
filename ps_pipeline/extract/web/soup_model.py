@@ -1,4 +1,5 @@
 import html
+import copy
 import functools
 from pathlib import Path
 from datetime import datetime
@@ -68,43 +69,53 @@ class ArticleSoup(HTMLSoup):
         super().__init__(html.unescape(page_source))
 
     def extract(self):
+
         return {
-            "article_title": self.title,
-            "article_timestamp": self.timestamp,
-            "article_text": self.text,
+            "title": self.title,
+            "source_url": self.url,
+            "publish_time": self.timestamp,
+            "publish_location": self.location,
+            "raw_text": self.text,
             "article_type": self.type,
             "article_tags": self.tags,
-            "article_url": self.url,
-            "publish_location": self.location,
         }
 
 
 def remove_formatting(soup):
-    anchor = soup.find_all("a")
-    emphasis = soup.find_all("em")
-    italic = soup.find_all("i")
-    strong = soup.find_all("strong")
-    bold = soup.find_all("b")
-    marked = soup.find_all("mark")
-    small = soup.find_all("small")
-    inserted = soup.find_all("ins")
-    superscripted = soup.find_all("sup")
-    subscripted = soup.find_all("sub")
+    soup = copy.copy(soup)
 
-    all_instances = (
-        anchor
-        + emphasis
-        + italic
-        + strong
-        + bold
-        + marked
-        + small
-        + inserted
-        + subscripted
-        + superscripted
-    )
-
-    for tag in all_instances:
+    tags_to_unwrap = [
+        "a",
+        "s",
+        "u",
+        "em",
+        "i",
+        "strong",
+        "b",
+        "mark",
+        "small",
+        "del",
+        "strike",
+        "ins",
+        "sup",
+        "sub",
+        "span",
+        "font",
+    ]
+    for tag in soup.find_all(tags_to_unwrap):
         tag.unwrap()
 
     soup.smooth()
+
+    return soup
+
+
+def unwrap_grandchild(soup):
+    soup = copy.copy(soup)
+
+    for tag in soup.find_all(recursive=False):
+        for _tag in tag.find_all():
+            _tag.unwrap()
+
+    soup.smooth()
+    return soup

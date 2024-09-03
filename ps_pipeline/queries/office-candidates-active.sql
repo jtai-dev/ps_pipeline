@@ -1,5 +1,5 @@
 SELECT
-	DISTINCT
+	DISTINCT ON (candidate.candidate_id)
     candidate.candidate_id,
     concat_ws(' ',
 			  candidate.firstname, 
