@@ -1,3 +1,9 @@
+"""
+Main module that executes the loading pipeline on command.
+"""
+
+__author__ = "Johanan Tai"
+
 import argparse
 import json
 import psycopg

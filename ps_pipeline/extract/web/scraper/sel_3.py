@@ -1,3 +1,9 @@
+"""
+Web Driver module open a browser object and executes a parser.
+"""
+
+__author__ = "Johanan Tai"
+
 from pathlib import Path
 from collections import defaultdict
 from dateutil.parser import parse as datetimeparse

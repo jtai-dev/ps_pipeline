@@ -1,3 +1,9 @@
+"""
+HTML Parser using BeautifulSoup and heavy utilization of soup_model.py
+"""
+
+__author__ = "Johanan Tai"
+
 import re
 from urllib.parse import urlparse, urljoin
 

@@ -1,3 +1,9 @@
+"""
+Module to parse and write as JSON objects. May serve as a backup to a relational ORM.
+"""
+
+__author__ = "Johanan Tai"
+
 import json
 from datetime import datetime
 from dateutil.parser import parse as datetimeparse
@@ -180,6 +186,7 @@ class NLPExtracts(JSONObject):
     @property
     def all_attributed(self):
         return {extract.attributed for extract in self.all if extract.attributed}
+
 
 #   ###
 

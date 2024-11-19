@@ -1,3 +1,9 @@
+"""
+spaCy powered module containing specific algorithms targetting attributed statements.
+"""
+
+__author__ = "Johanan Tai"
+
 # External packages and libraries
 import re
 from spacy.language import Language

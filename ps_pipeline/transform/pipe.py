@@ -1,3 +1,9 @@
+"""
+General logic for the loading pipeline, matching persons and harvest file creation.
+"""
+
+__author__ = "Johanan Tai"
+
 import re
 from datetime import datetime
 from dateutil.parser import parse as datetimeparse

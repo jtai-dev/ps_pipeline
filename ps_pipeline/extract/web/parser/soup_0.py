@@ -1,3 +1,9 @@
+"""
+HTML Parser using BeautifulSoup and heavy utilization of soup_model.py
+"""
+
+__author__ = "Johanan Tai"
+
 import re
 from urllib.parse import urlparse, urljoin
 
@@ -8,6 +14,7 @@ from ps_pipeline.extract.web.soup_model import (
     ArticleSoup,
     remove_formatting,
 )
+
 
 def get_page_urls(page_source, url):
     soup = BeautifulSoup(page_source, "html.parser")
@@ -21,6 +28,7 @@ def get_page_urls(page_source, url):
         urlparse(urljoin(url, f"page/{i}"))
         for i in range(int(first_page), int(last_page) + 1)
     ]
+
 
 def get_article_urls(page_source, url):
     soup = BeautifulSoup(page_source, "html.parser")

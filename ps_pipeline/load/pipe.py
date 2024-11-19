@@ -1,3 +1,9 @@
+"""
+General logic for the loading pipeline, matching persons and harvest file creation.
+"""
+
+__author__ = "Johanan Tai"
+
 from pathlib import Path
 
 # External Packages & Libraries

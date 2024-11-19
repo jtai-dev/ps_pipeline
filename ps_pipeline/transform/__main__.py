@@ -1,3 +1,9 @@
+"""
+Main module that executes the transformation pipeline on command.
+"""
+
+__author__ = "Johanan Tai"
+
 import argparse
 import json
 import os

@@ -1,3 +1,9 @@
+"""
+Contains classes that parses and formats HTML objects.
+"""
+
+__author__ = "Johanan Tai"
+
 import html
 import copy
 import functools

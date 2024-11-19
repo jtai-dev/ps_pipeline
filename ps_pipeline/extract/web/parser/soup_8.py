@@ -1,3 +1,9 @@
+"""
+HTML Parser using BeautifulSoup and heavy utilization of soup_model.py
+"""
+
+__author__ = "Johanan Tai"
+
 import re
 from urllib.parse import urlparse, urljoin
 
@@ -7,7 +13,7 @@ from bs4 import BeautifulSoup
 from ps_pipeline.extract.web.soup_model import (
     ArticleSoup,
     remove_formatting,
-    unwrap_grandchild
+    unwrap_grandchild,
 )
 
 

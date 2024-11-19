@@ -1,3 +1,9 @@
+"""
+General logic for the extraction pipeline combining parser and scraper.
+"""
+
+__author__ = "Johanan Tai"
+
 import json
 from tqdm import tqdm
 

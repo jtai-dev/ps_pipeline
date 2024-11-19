@@ -1,3 +1,9 @@
+"""
+spaCy powered module containing general algorithm that supports other NLP modules.
+"""
+
+__author__ = "Johanan Tai"
+
 import re
 from spacy.language import Language
 from spacy.tokens import Doc, Span

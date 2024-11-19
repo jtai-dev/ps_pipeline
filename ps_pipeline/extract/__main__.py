@@ -1,3 +1,9 @@
+"""
+Main module that executes the extraction pipeline on command.
+"""
+
+__author__ = "Johanan Tai"
+
 import os
 import json
 import argparse
